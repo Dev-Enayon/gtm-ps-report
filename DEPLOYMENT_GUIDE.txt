@@ -1,0 +1,241 @@
+# 🚀 Complete Deployment Guide — GOTM Church App
+# From Zero to Live in ~20 minutes
+
+================================================================
+PART 1 — GITHUB (5 minutes)
+================================================================
+
+STEP 1: Create a GitHub account (if you don't have one)
+─────────────────────────────────────────────────────────
+  1. Go to https://github.com
+  2. Click "Sign up"
+  3. Enter email, password, username
+  4. Verify your email
+
+
+STEP 2: Install Git on your computer
+─────────────────────────────────────
+  Windows:
+    → Download from https://git-scm.com/download/win
+    → Install with default settings
+
+  Mac:
+    → Open Terminal, type: git --version
+    → If not installed, it will prompt you to install
+
+
+STEP 3: Create a new GitHub repository
+────────────────────────────────────────
+  1. Go to https://github.com/new
+  2. Repository name: gotm-church-app
+  3. Set to: Public  (or Private — both work)
+  4. Do NOT check "Add README"
+  5. Click "Create repository"
+  6. COPY the repository URL shown (e.g. https://github.com/yourname/gotm-church-app.git)
+
+
+STEP 4: Push your code to GitHub
+──────────────────────────────────
+  1. Extract the church-app.zip you downloaded
+  2. Open Terminal (Mac) or Command Prompt / Git Bash (Windows)
+  3. Navigate into the extracted folder:
+
+     cd path/to/church-app
+
+  4. Run these commands ONE BY ONE:
+
+     git init
+     git add .
+     git commit -m "Initial commit: GOTM Church App"
+     git branch -M main
+     git remote add origin https://github.com/YOUR_USERNAME/gotm-church-app.git
+     git push -u origin main
+
+  ✅ Your code is now on GitHub!
+
+
+================================================================
+PART 2 — RENDER.COM BACKEND + DATABASE (10 minutes)
+================================================================
+
+STEP 5: Create a Render account
+────────────────────────────────
+  1. Go to https://render.com
+  2. Click "Get Started for Free"
+  3. Sign up with GitHub (easiest — links automatically)
+
+
+STEP 6: Create the PostgreSQL Database FIRST
+─────────────────────────────────────────────
+  1. In Render dashboard, click "New +" → "PostgreSQL"
+  2. Fill in:
+       Name:          gotm-church-db
+       Region:        Oregon (US West)  ← pick closest to you
+       Plan:          Free
+  3. Click "Create Database"
+  4. Wait ~1 minute for it to provision
+  5. COPY the "Internal Database URL" — you'll need it next
+     (looks like: postgresql://user:password@host/dbname)
+
+
+STEP 7: Create the Backend Web Service
+────────────────────────────────────────
+  1. Click "New +" → "Web Service"
+  2. Connect your GitHub repo (gotm-church-app)
+  3. Fill in these settings:
+
+       Name:           gotm-church-api
+       Region:         Oregon (same as database!)
+       Branch:         main
+       Root Directory: backend
+       Runtime:        Node
+       Build Command:  npm install
+       Start Command:  npm start
+       Plan:           Free
+
+  4. Scroll down to "Environment Variables" — Add these one by one:
+
+  ┌─────────────────────────┬────────────────────────────────────────┐
+  │ Key                     │ Value                                  │
+  ├─────────────────────────┼────────────────────────────────────────┤
+  │ NODE_ENV                │ production                             │
+  │ PORT                    │ 5000                                   │
+  │ DATABASE_URL            │ [paste Internal Database URL here]     │
+  │ JWT_SECRET              │ [type any long random string]          │
+  │                         │ e.g. gotm2024SecretKey!XyZ#789abcDEF  │
+  │ JWT_REFRESH_SECRET      │ [type another random string]           │
+  │                         │ e.g. gotmRefresh2024!AbC#456xyzQRS    │
+  │ JWT_EXPIRES_IN          │ 7d                                     │
+  │ HEAD_ADMIN_EMAIL        │ your-email@gmail.com                   │
+  │ HEAD_ADMIN_PASSWORD     │ YourPassword@2024!                     │
+  │ HEAD_ADMIN_FULLNAME     │ Your Full Name                         │
+  │ FRONTEND_URL            │ https://placeholder.com (update later) │
+  │ SMTP_HOST               │ smtp.gmail.com                         │
+  │ SMTP_PORT               │ 587                                    │
+  │ SMTP_USER               │ your-gmail@gmail.com                   │
+  │ SMTP_PASS               │ [Gmail App Password — see Step 8]      │
+  │ EMAIL_FROM              │ noreply@gospeloftruth.org              │
+  └─────────────────────────┴────────────────────────────────────────┘
+
+  5. Click "Create Web Service"
+  6. Wait 3-5 minutes for build to complete
+  7. You should see "Live" with a green dot ✅
+  8. COPY your API URL (e.g. https://gotm-church-api.onrender.com)
+
+
+STEP 8: Gmail App Password Setup (for email)
+─────────────────────────────────────────────
+  1. Go to https://myaccount.google.com/security
+  2. Make sure 2-Step Verification is ON
+  3. Search for "App passwords" in the search bar
+  4. Select app: Mail → Select device: Other → type "GOTM Church"
+  5. Click Generate → Copy the 16-character password
+  6. Go back to Render → update SMTP_PASS with this password
+
+
+STEP 9: Run Database Migrations
+─────────────────────────────────
+  After your backend service is "Live":
+
+  1. In Render, click on your "gotm-church-api" service
+  2. Click the "Shell" tab (top navigation)
+  3. Type these commands:
+
+     node src/models/migrate.js
+
+     (wait for "✅ Database migration completed successfully")
+
+     node src/models/seed.js
+
+     (wait for "✅ Head Admin created successfully!")
+
+  ✅ Database is ready!
+
+
+================================================================
+PART 3 — VERCEL FRONTEND (5 minutes)
+================================================================
+
+STEP 10: Deploy Frontend on Vercel
+────────────────────────────────────
+  1. Go to https://vercel.com
+  2. Sign up with GitHub
+  3. Click "Add New Project"
+  4. Import your gotm-church-app repository
+  5. Configure project:
+
+       Framework Preset:  Create React App
+       Root Directory:    frontend    ← IMPORTANT! Click "Edit"
+       Build Command:     npm run build
+       Output Directory:  build
+
+  6. Click "Environment Variables" → Add:
+
+       REACT_APP_API_URL = https://gotm-church-api.onrender.com/api
+       (replace with your actual Render API URL from Step 7)
+
+  7. Click "Deploy"
+  8. Wait ~2 minutes
+  9. COPY your frontend URL (e.g. https://gotm-church.vercel.app)
+
+
+STEP 11: Update CORS on Render
+──────────────────────────────
+  1. Go back to Render → gotm-church-api → Environment
+  2. Update FRONTEND_URL to your Vercel URL:
+     e.g. https://gotm-church.vercel.app
+  3. Render will auto-redeploy
+
+
+================================================================
+PART 4 — TEST YOUR APP ✅
+================================================================
+
+STEP 12: Test the live app
+───────────────────────────
+  1. Open your Vercel URL in a browser
+  2. Login with:
+       Email:    [what you set as HEAD_ADMIN_EMAIL]
+       Password: [what you set as HEAD_ADMIN_PASSWORD]
+  3. You should see the Admin Dashboard!
+
+  Test the flow:
+  ✅ Register a new branch user account
+  ✅ Login as branch user → submit a report
+  ✅ Login as head admin → approve the report
+  ✅ Try requesting admin access as branch user
+  ✅ Approve admin request as head admin
+
+
+================================================================
+TROUBLESHOOTING
+================================================================
+
+❌ "Application failed to respond" on Render
+  → Check Render logs (Logs tab)
+  → Make sure DATABASE_URL is the Internal URL (not External)
+  → Make sure Root Directory is set to "backend"
+
+❌ "Network Error" on frontend
+  → Check REACT_APP_API_URL has no trailing slash
+  → Make sure Render service is "Live" not "Suspended"
+  → Free tier sleeps after 15 min — first request takes ~30s to wake
+
+❌ Migration fails
+  → Make sure you copied the correct DATABASE_URL
+  → Try the External Database URL instead of Internal
+
+❌ Can't login after seed
+  → Make sure HEAD_ADMIN_EMAIL and HEAD_ADMIN_PASSWORD match
+     what you set in environment variables
+  → Re-run: node src/models/seed.js
+
+❌ Emails not sending
+  → Gmail App Password must be 16 chars with no spaces
+  → Make sure 2FA is enabled on your Google account
+  → App will still work without email — it just won't send notifications
+
+================================================================
+NEED HELP?
+================================================================
+If you get a specific error message, share it and I'll fix it!

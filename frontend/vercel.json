@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "name": "gotm-church-frontend",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install",
+  "framework": "create-react-app",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "env": {
+    "REACT_APP_API_URL": "https://gotm-church-api.onrender.com/api"
+  }
+}
