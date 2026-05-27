@@ -3,9 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
-  Church, LayoutDashboard, FileText, BarChart2, Activity,
-  Users, ShieldCheck, ClipboardList, PlusCircle, History,
-  LogOut, Bell, Menu, X, ChevronRight, UserCog
+  Church, LayoutDashboard, FileText, BarChart2, Activity,`n  Users, ShieldCheck, ClipboardList, PlusCircle, History,`n  LogOut, Bell, Menu, X, UserCog
 } from 'lucide-react';
 
 const S = {
@@ -124,3 +122,4 @@ export default function DashboardLayout() {
     </div>
   );
 }
+
