@@ -3,9 +3,8 @@ const { pool } = require('./db');
 async function migrate() {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    console.log('Running migrations...');
 
-    // Users table with role system
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,7 +18,7 @@ async function migrate() {
         phone VARCHAR(30),
         avatar_url TEXT,
         admin_request_note TEXT,
-        admin_approved_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        admin_approved_by UUID,
         admin_approved_at TIMESTAMPTZ,
         last_login TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -27,7 +26,6 @@ async function migrate() {
       );
     `);
 
-    // Admin requests table
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_requests (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,7 +40,6 @@ async function migrate() {
       );
     `);
 
-    // Monthly reports table
     await client.query(`
       CREATE TABLE IF NOT EXISTS monthly_reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,7 +82,6 @@ async function migrate() {
       );
     `);
 
-    // Daily attendance rows
     await client.query(`
       CREATE TABLE IF NOT EXISTS attendance_rows (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -106,7 +102,6 @@ async function migrate() {
       );
     `);
 
-    // Audit log table
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -121,7 +116,6 @@ async function migrate() {
       );
     `);
 
-    // Notifications table
     await client.query(`
       CREATE TABLE IF NOT EXISTS notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -135,7 +129,6 @@ async function migrate() {
       );
     `);
 
-    // Refresh tokens
     await client.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,7 +139,6 @@ async function migrate() {
       );
     `);
 
-    // Indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_reports_user_id ON monthly_reports(user_id);
@@ -158,15 +150,16 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_admin_requests_user_id ON admin_requests(user_id);
     `);
 
-    await client.query('COMMIT');
-    console.log('✅ Database migration completed successfully');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('❌ Migration failed:', err);
-    throw err;
+    console.log('Migrations complete');
   } finally {
     client.release();
   }
 }
 
-migrate().catch(console.error).finally(() => process.exit());
+// Allow running standalone: node src/models/migrate.js
+if (require.main === module) {
+  require('dotenv').config();
+  migrate().catch(console.error).finally(() => process.exit());
+}
+
+module.exports = { migrate };

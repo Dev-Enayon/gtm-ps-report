@@ -3,11 +3,12 @@ const { pool } = require('../models/db');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { sendEmail, emailTemplates } = require('../utils/email');
 const { auditLog, createNotification } = require('../utils/audit');
+const { isUuid, parseIntSafe } = require('../utils/helpers');
 
 router.use(authenticate);
 
-// GET /api/reports/analytics/summary — MUST be before /:id to avoid route collision
-router.get('/analytics/summary', requireAdmin, async (req, res) => {
+// GET /api/reports/analytics/summary — MUST be before /:id
+router.get('/analytics/summary', requireAdmin, async (req, res, next) => {
   try {
     const monthly = await pool.query(`
       SELECT month, year,
@@ -31,14 +32,15 @@ router.get('/analytics/summary', requireAdmin, async (req, res) => {
     `);
     res.json({ monthly: monthly.rows, byBranch: byBranch.rows });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    next(err);
   }
 });
 
-// GET /api/reports — list reports (admin sees all, branch sees own)
-router.get('/', async (req, res) => {
-  const { month, year, branch, status, division, page = 1, limit = 20 } = req.query;
+// GET /api/reports
+router.get('/', async (req, res, next) => {
+  const { month, year, branch, status, division } = req.query;
+  const page = Math.max(parseIntSafe(req.query.page, 1), 1);
+  const limit = Math.min(Math.max(parseIntSafe(req.query.limit, 20), 1), 100);
   const offset = (page - 1) * limit;
   const isAdmin = ['admin', 'head_admin'].includes(req.user.role);
 
@@ -49,7 +51,7 @@ router.get('/', async (req, res) => {
 
     if (!isAdmin) { conditions.push(`r.user_id = $${idx++}`); params.push(req.user.id); }
     if (month) { conditions.push(`r.month = $${idx++}`); params.push(month); }
-    if (year) { conditions.push(`r.year = $${idx++}`); params.push(parseInt(year)); }
+    if (year) { conditions.push(`r.year = $${idx++}`); params.push(parseIntSafe(year, new Date().getFullYear())); }
     if (branch) { conditions.push(`r.branch ILIKE $${idx++}`); params.push(`%${branch}%`); }
     if (status) { conditions.push(`r.status = $${idx++}`); params.push(status); }
     if (division) { conditions.push(`r.division = $${idx++}`); params.push(division); }
@@ -73,17 +75,18 @@ router.get('/', async (req, res) => {
     res.json({
       reports: data.rows,
       total: parseInt(count.rows[0].count),
-      page: parseInt(page),
-      pages: Math.ceil(count.rows[0].count / limit),
+      page,
+      pages: Math.ceil(parseInt(count.rows[0].count) / limit),
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch reports' });
+    next(err);
   }
 });
 
-// GET /api/reports/:id — single report with attendance rows
-router.get('/:id', async (req, res) => {
+// GET /api/reports/:id
+router.get('/:id', async (req, res, next) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: 'Invalid report ID' });
+
   const isAdmin = ['admin', 'head_admin'].includes(req.user.role);
   try {
     const result = await pool.query(`
@@ -104,27 +107,32 @@ router.get('/:id', async (req, res) => {
 
     res.json({ ...result.rows[0], attendanceRows: rows.rows });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch report' });
+    next(err);
   }
 });
 
-// POST /api/reports — create new report
-router.post('/', async (req, res) => {
+// POST /api/reports
+router.post('/', async (req, res, next) => {
   const { division, branch, month, year, attendanceRows = [], financials = {}, status = 'draft' } = req.body;
-  if (!division || !branch || !month || !year) return res.status(400).json({ error: 'Division, branch, month and year are required' });
+  if (!division || !branch || !month || !year) {
+    return res.status(400).json({ error: 'Division, branch, month and year are required' });
+  }
+
+  const parsedYear = parseIntSafe(year, 0);
+  if (parsedYear < 2000 || parsedYear > 2100) {
+    return res.status(400).json({ error: 'Invalid year' });
+  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // Calculate totals from attendance rows
     const totals = attendanceRows.reduce((acc, row) => ({
-      men: acc.men + (parseInt(row.attendance_men) || 0),
-      women: acc.women + (parseInt(row.attendance_women) || 0),
-      children: acc.children + (parseInt(row.attendance_children) || 0),
-      newConverts: acc.newConverts + (parseInt(row.new_convert) || 0),
-      newGuests: acc.newGuests + (parseInt(row.new_guest) || 0),
+      men: acc.men + (parseIntSafe(row.attendance_men, 0)),
+      women: acc.women + (parseIntSafe(row.attendance_women, 0)),
+      children: acc.children + (parseIntSafe(row.attendance_children, 0)),
+      newConverts: acc.newConverts + (parseIntSafe(row.new_convert, 0)),
+      newGuests: acc.newGuests + (parseIntSafe(row.new_guest, 0)),
       monetary: acc.monetary + (parseFloat(row.monetary_amount) || 0),
     }), { men: 0, women: 0, children: 0, newConverts: 0, newGuests: 0, monetary: 0 });
 
@@ -150,8 +158,7 @@ router.post('/', async (req, res) => {
         offering_100, offering_70, offering_30,
         wednesday_offering_70, wednesday_offering_30,
         gospel_service_offering_70, gospel_service_offering_30,
-        total_amount_remitted,
-        submitted_at
+        total_amount_remitted, submitted_at
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
       ON CONFLICT (user_id, month, year, branch) DO UPDATE SET
         division = EXCLUDED.division, status = EXCLUDED.status,
@@ -169,11 +176,10 @@ router.post('/', async (req, res) => {
         gospel_service_offering_70 = EXCLUDED.gospel_service_offering_70,
         gospel_service_offering_30 = EXCLUDED.gospel_service_offering_30,
         total_amount_remitted = EXCLUDED.total_amount_remitted,
-        submitted_at = EXCLUDED.submitted_at,
-        updated_at = NOW()
+        submitted_at = EXCLUDED.submitted_at, updated_at = NOW()
       RETURNING *
     `, [
-      req.user.id, division, branch, month, parseInt(year),
+      req.user.id, division, branch, month, parsedYear,
       status === 'submitted' ? 'submitted' : 'draft',
       totals.men, totals.women, totals.children, totalAttendance,
       totals.newConverts, totals.newGuests, totals.monetary,
@@ -189,25 +195,23 @@ router.post('/', async (req, res) => {
 
     const report = reportResult.rows[0];
 
-    // Replace attendance rows
     await client.query('DELETE FROM attendance_rows WHERE report_id = $1', [report.id]);
     for (const row of attendanceRows) {
       if (!row.date) continue;
-      const total = (parseInt(row.attendance_men)||0) + (parseInt(row.attendance_women)||0) + (parseInt(row.attendance_children)||0);
+      const total = (parseIntSafe(row.attendance_men, 0)) + (parseIntSafe(row.attendance_women, 0)) + (parseIntSafe(row.attendance_children, 0));
       await client.query(`
         INSERT INTO attendance_rows (report_id, date, day_name, attendance_men, attendance_women, attendance_children,
           attendance_total, preacher_minister, new_convert, new_guest, sunday_school_attendance, house_fellowship, monetary_amount)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       `, [
-        report.id, row.date, row.day_name, row.attendance_men||0, row.attendance_women||0,
-        row.attendance_children||0, total, row.preacher_minister||'', row.new_convert||0,
-        row.new_guest||0, row.sunday_school_attendance||0, row.house_fellowship||0, row.monetary_amount||0,
+        report.id, row.date, row.day_name, parseIntSafe(row.attendance_men, 0), parseIntSafe(row.attendance_women, 0),
+        parseIntSafe(row.attendance_children, 0), total, row.preacher_minister || '', parseIntSafe(row.new_convert, 0),
+        parseIntSafe(row.new_guest, 0), parseIntSafe(row.sunday_school_attendance, 0), parseIntSafe(row.house_fellowship, 0), parseFloat(row.monetary_amount) || 0,
       ]);
     }
 
     await client.query('COMMIT');
 
-    // If submitted, notify admins
     if (status === 'submitted') {
       const admins = await pool.query("SELECT * FROM users WHERE role IN ('admin','head_admin') AND status = 'active'");
       for (const admin of admins.rows) {
@@ -222,16 +226,17 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(report);
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save report' });
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
   } finally {
     client.release();
   }
 });
 
 // POST /api/reports/:id/approve
-router.post('/:id/approve', requireAdmin, async (req, res) => {
+router.post('/:id/approve', requireAdmin, async (req, res, next) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: 'Invalid report ID' });
+
   const { comment } = req.body;
   try {
     const rep = await pool.query('SELECT * FROM monthly_reports WHERE id = $1', [req.params.id]);
@@ -252,19 +257,21 @@ router.post('/:id/approve', requireAdmin, async (req, res) => {
 
     res.json({ message: 'Report approved' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to approve' });
+    next(err);
   }
 });
 
 // POST /api/reports/:id/reject
-router.post('/:id/reject', requireAdmin, async (req, res) => {
+router.post('/:id/reject', requireAdmin, async (req, res, next) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: 'Invalid report ID' });
+
   const { reason } = req.body;
   if (!reason) return res.status(400).json({ error: 'Rejection reason required' });
 
   try {
     const rep = await pool.query('SELECT * FROM monthly_reports WHERE id = $1', [req.params.id]);
     if (!rep.rows.length) return res.status(404).json({ error: 'Report not found' });
+    if (rep.rows[0].status !== 'submitted') return res.status(400).json({ error: 'Report is not in submitted state' });
 
     await pool.query(`
       UPDATE monthly_reports SET status = 'rejected', reviewed_by = $1, reviewed_at = NOW(), rejection_reason = $2, updated_at = NOW()
@@ -280,8 +287,7 @@ router.post('/:id/reject', requireAdmin, async (req, res) => {
 
     res.json({ message: 'Report rejected' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to reject' });
+    next(err);
   }
 });
 

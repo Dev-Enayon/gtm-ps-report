@@ -20,7 +20,7 @@ router.post('/register', [
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('branch_name').trim().notEmpty().withMessage('Branch name required'),
   body('division').trim().notEmpty().withMessage('Division required'),
-], async (req, res) => {
+], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
@@ -40,7 +40,6 @@ router.post('/register', [
     const user = result.rows[0];
     const { accessToken, refreshToken } = generateTokens(user.id);
 
-    // Store refresh token
     await pool.query(`
       INSERT INTO refresh_tokens (user_id, token, expires_at)
       VALUES ($1, $2, NOW() + INTERVAL '30 days')
@@ -50,8 +49,7 @@ router.post('/register', [
 
     res.status(201).json({ user, accessToken, refreshToken });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Registration failed' });
+    next(err);
   }
 });
 
@@ -59,16 +57,14 @@ router.post('/register', [
 router.post('/login', [
   body('email').isEmail().normalizeEmail(),
   body('password').notEmpty(),
-], async (req, res) => {
+], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1', [email]
-    );
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (!result.rows.length) return res.status(401).json({ error: 'Invalid credentials' });
 
     const user = result.rows[0];
@@ -91,58 +87,71 @@ router.post('/login', [
     const { password_hash, ...safeUser } = user;
     res.json({ user: safeUser, accessToken, refreshToken });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Login failed' });
+    next(err);
   }
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', async (req, res, next) => {
   const { refreshToken } = req.body;
   if (!refreshToken) return res.status(401).json({ error: 'No refresh token' });
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
     const stored = await pool.query(
-      'SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()', [refreshToken]
+      'SELECT * FROM refresh_tokens WHERE token = $1 AND user_id = $2 AND expires_at > NOW()',
+      [refreshToken, decoded.userId]
     );
     if (!stored.rows.length) return res.status(401).json({ error: 'Invalid refresh token' });
 
-    const { accessToken, refreshToken: newRefresh } = generateTokens(decoded.userId);
+    const tokens = generateTokens(decoded.userId);
     await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
     await pool.query(`
       INSERT INTO refresh_tokens (user_id, token, expires_at)
       VALUES ($1, $2, NOW() + INTERVAL '30 days')
-    `, [decoded.userId, newRefresh]);
+    `, [decoded.userId, tokens.refreshToken]);
 
-    res.json({ accessToken, refreshToken: newRefresh });
+    res.json(tokens);
   } catch (err) {
-    res.status(401).json({ error: 'Invalid token' });
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    next(err);
   }
 });
 
 // POST /api/auth/logout
-router.post('/logout', authenticate, async (req, res) => {
-  const { refreshToken } = req.body;
-  if (refreshToken) await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
-  await auditLog(req.user.id, 'USER_LOGOUT', null, null, {}, req);
-  res.json({ message: 'Logged out' });
+router.post('/logout', authenticate, async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    if (refreshToken) {
+      await pool.query('DELETE FROM refresh_tokens WHERE token = $1 AND user_id = $2', [refreshToken, req.user.id]);
+    }
+    await auditLog(req.user.id, 'USER_LOGOUT', null, null, {}, req);
+    res.json({ message: 'Logged out' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/auth/me
-router.get('/me', authenticate, async (req, res) => {
-  const result = await pool.query(
-    'SELECT id, fullname, email, role, status, branch_name, division, phone, last_login, created_at FROM users WHERE id = $1',
-    [req.user.id]
-  );
-  res.json(result.rows[0]);
+router.get('/me', authenticate, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, fullname, email, role, status, branch_name, division, phone, last_login, created_at FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/auth/request-admin
-// Branch users request admin access — goes to head_admin for approval
 router.post('/request-admin', authenticate, [
   body('reason').trim().isLength({ min: 20 }).withMessage('Please provide a detailed reason (min 20 characters)'),
-], async (req, res) => {
+], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
@@ -153,7 +162,6 @@ router.post('/request-admin', authenticate, [
   const { reason } = req.body;
 
   try {
-    // Check for existing pending request
     const existing = await pool.query(
       "SELECT id FROM admin_requests WHERE user_id = $1 AND status = 'pending'",
       [req.user.id]
@@ -168,10 +176,8 @@ router.post('/request-admin', authenticate, [
       RETURNING *
     `, [req.user.id, reason]);
 
-    // Update user's request note
     await pool.query('UPDATE users SET admin_request_note = $1 WHERE id = $2', [reason, req.user.id]);
 
-    // Notify head admin
     const headAdmin = await pool.query("SELECT * FROM users WHERE role = 'head_admin' LIMIT 1");
     if (headAdmin.rows.length) {
       const { subject, html } = emailTemplates.adminRequestNotifyHeadAdmin(req.user, reason);
@@ -185,16 +191,14 @@ router.post('/request-admin', authenticate, [
       );
     }
 
-    // Confirm to requester
-    const { subject, html } = emailTemplates.adminRequestReceived(req.user);
-    await sendEmail({ to: req.user.email, subject, html });
+    const confirmEmail = emailTemplates.adminRequestReceived(req.user);
+    await sendEmail({ to: req.user.email, subject: confirmEmail.subject, html: confirmEmail.html });
 
     await auditLog(req.user.id, 'ADMIN_REQUEST_SUBMITTED', 'admin_request', result.rows[0].id, { reason }, req);
 
     res.status(201).json({ message: 'Admin request submitted. You will be notified by email.', request: result.rows[0] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to submit request' });
+    next(err);
   }
 });
 

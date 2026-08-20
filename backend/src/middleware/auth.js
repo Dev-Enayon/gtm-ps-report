@@ -7,6 +7,7 @@ const authenticate = async (req, res, next) => {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No token provided' });
     }
+
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -14,13 +15,16 @@ const authenticate = async (req, res, next) => {
       'SELECT id, fullname, email, role, status, branch_name, division FROM users WHERE id = $1',
       [decoded.userId]
     );
+
     if (!result.rows.length) {
       return res.status(401).json({ error: 'User not found' });
     }
+
     const user = result.rows[0];
     if (user.status !== 'active') {
       return res.status(403).json({ error: 'Account is not active' });
     }
+
     req.user = user;
     next();
   } catch (err) {
