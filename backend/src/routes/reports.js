@@ -6,6 +6,36 @@ const { auditLog, createNotification } = require('../utils/audit');
 
 router.use(authenticate);
 
+// GET /api/reports/analytics/summary — MUST be before /:id to avoid route collision
+router.get('/analytics/summary', requireAdmin, async (req, res) => {
+  try {
+    const monthly = await pool.query(`
+      SELECT month, year,
+        SUM(total_attendance) as total_attendance,
+        SUM(total_amount_remitted) as total_remitted,
+        SUM(total_new_converts) as total_converts,
+        COUNT(*) as report_count
+      FROM monthly_reports WHERE status = 'approved'
+      GROUP BY month, year ORDER BY year DESC,
+        CASE month WHEN 'January' THEN 1 WHEN 'February' THEN 2 WHEN 'March' THEN 3
+          WHEN 'April' THEN 4 WHEN 'May' THEN 5 WHEN 'June' THEN 6
+          WHEN 'July' THEN 7 WHEN 'August' THEN 8 WHEN 'September' THEN 9
+          WHEN 'October' THEN 10 WHEN 'November' THEN 11 WHEN 'December' THEN 12 END
+      LIMIT 12
+    `);
+    const byBranch = await pool.query(`
+      SELECT branch, SUM(total_amount_remitted) as total_remitted,
+        SUM(total_attendance) as total_attendance, COUNT(*) as reports
+      FROM monthly_reports WHERE status = 'approved'
+      GROUP BY branch ORDER BY total_remitted DESC LIMIT 10
+    `);
+    res.json({ monthly: monthly.rows, byBranch: byBranch.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
 // GET /api/reports — list reports (admin sees all, branch sees own)
 router.get('/', async (req, res) => {
   const { month, year, branch, status, division, page = 1, limit = 20 } = req.query;
@@ -252,36 +282,6 @@ router.post('/:id/reject', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to reject' });
-  }
-});
-
-// GET /api/reports/analytics/summary
-router.get('/analytics/summary', requireAdmin, async (req, res) => {
-  try {
-    const monthly = await pool.query(`
-      SELECT month, year, 
-        SUM(total_attendance) as total_attendance,
-        SUM(total_amount_remitted) as total_remitted,
-        SUM(total_new_converts) as total_converts,
-        COUNT(*) as report_count
-      FROM monthly_reports WHERE status = 'approved'
-      GROUP BY month, year ORDER BY year DESC, 
-        CASE month WHEN 'January' THEN 1 WHEN 'February' THEN 2 WHEN 'March' THEN 3
-          WHEN 'April' THEN 4 WHEN 'May' THEN 5 WHEN 'June' THEN 6
-          WHEN 'July' THEN 7 WHEN 'August' THEN 8 WHEN 'September' THEN 9
-          WHEN 'October' THEN 10 WHEN 'November' THEN 11 WHEN 'December' THEN 12 END
-      LIMIT 12
-    `);
-    const byBranch = await pool.query(`
-      SELECT branch, SUM(total_amount_remitted) as total_remitted,
-        SUM(total_attendance) as total_attendance, COUNT(*) as reports
-      FROM monthly_reports WHERE status = 'approved'
-      GROUP BY branch ORDER BY total_remitted DESC LIMIT 10
-    `);
-    res.json({ monthly: monthly.rows, byBranch: byBranch.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 
