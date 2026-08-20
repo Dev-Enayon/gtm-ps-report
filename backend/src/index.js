@@ -13,13 +13,10 @@ const reportRoutes = require('./routes/reports');
 
 // ─── Auto-migrate + Auto-seed on startup ───────────────────────────────────
 async function initDatabase() {
-  const client = await pool.connect();
   try {
     console.log('🔧 Running database migrations...');
 
-    await client.query('BEGIN');
-
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         fullname VARCHAR(200) NOT NULL,
@@ -40,7 +37,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS admin_requests (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -54,7 +51,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS monthly_reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -96,7 +93,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS attendance_rows (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         report_id UUID NOT NULL REFERENCES monthly_reports(id) ON DELETE CASCADE,
@@ -116,7 +113,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -130,7 +127,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -143,7 +140,7 @@ async function initDatabase() {
       );
     `);
 
-    await client.query(`
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -154,7 +151,7 @@ async function initDatabase() {
     `);
 
     // Indexes (IF NOT EXISTS is safe to re-run)
-    await client.query(`
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
       CREATE INDEX IF NOT EXISTS idx_reports_user_id ON monthly_reports(user_id);
       CREATE INDEX IF NOT EXISTS idx_reports_status ON monthly_reports(status);
@@ -163,7 +160,6 @@ async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
     `);
 
-    await client.query('COMMIT');
     console.log('✅ Migrations complete');
 
     // ── Auto-seed Head Admin ──────────────────────────────────────────────
@@ -183,11 +179,8 @@ async function initDatabase() {
     }
 
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
     console.error('❌ Database init error:', err.message);
     // Don't crash the server — DB might already be set up
-  } finally {
-    client.release();
   }
 }
 
