@@ -128,17 +128,22 @@ const INDEXES = [
 ];
 
 async function migrate() {
-  console.log('Running migrations...');
+  const client = await pool.connect();
+  try {
+    console.log('Running migrations...');
 
-  for (const sql of TABLES) {
-    await pool.query(sql);
+    for (const sql of TABLES) {
+      await client.query(sql);
+    }
+
+    for (const sql of INDEXES) {
+      await client.query(sql);
+    }
+
+    console.log('Migrations complete');
+  } finally {
+    client.release();
   }
-
-  for (const sql of INDEXES) {
-    await pool.query(sql);
-  }
-
-  console.log('Migrations complete');
 }
 
 if (require.main === module) {
