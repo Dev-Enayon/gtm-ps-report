@@ -9,6 +9,6 @@
     { "source": "/(.*)", "destination": "/" }
   ],
   "env": {
-    "REACT_APP_API_URL": "https://gotm-church-api.onrender.com/api"
+    "REACT_APP_API_URL": "https://gtm-ps-report.onrender.com/api"
   }
 }

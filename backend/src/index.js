@@ -196,8 +196,8 @@ const app = express();
 // Security
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
+  origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : true,
+  credentials: !!process.env.FRONTEND_URL,
 }));
 
 // Rate limiting
