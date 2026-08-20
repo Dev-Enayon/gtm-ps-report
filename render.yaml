@@ -3,7 +3,7 @@ services:
   # Backend API (Node.js / Express)
   # ─────────────────────────────────────────
   - type: web
-    name: gotm-church-api
+    name: gtm-ps-report
     runtime: node
     region: oregon
     plan: free          # upgrade to starter ($7/mo) for production
