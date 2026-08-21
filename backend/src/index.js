@@ -18,9 +18,16 @@ const app = express();
 
 // Security
 app.use(helmet());
+const allowedOrigins = (process.env.FRONTEND_URL || '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean);
 app.use(cors({
-  origin: process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : true,
-  credentials: !!process.env.FRONTEND_URL,
+  origin: (origin, cb) => {
+    if (!origin || !allowedOrigins.length || allowedOrigins.includes(origin)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
 }));
 
 // Rate limiting
