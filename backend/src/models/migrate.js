@@ -5,15 +5,6 @@ async function migrate() {
   try {
     console.log('Running migrations...');
 
-    // Drop old tables (no production data yet)
-    await client.query('DROP TABLE IF EXISTS refresh_tokens CASCADE');
-    await client.query('DROP TABLE IF EXISTS notifications CASCADE');
-    await client.query('DROP TABLE IF EXISTS audit_logs CASCADE');
-    await client.query('DROP TABLE IF EXISTS attendance_rows CASCADE');
-    await client.query('DROP TABLE IF EXISTS monthly_reports CASCADE');
-    await client.query('DROP TABLE IF EXISTS admin_requests CASCADE');
-    await client.query('DROP TABLE IF EXISTS users CASCADE');
-
     // Phase 1: Create tables without FK constraints
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
