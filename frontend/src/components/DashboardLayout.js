@@ -59,7 +59,8 @@ export default function DashboardLayout() {
   return (
     <div style={S.wrap}>
       {/* Sidebar */}
-      {!sidebarOpen && <div style={S.overlay} onClick={() => setSidebarOpen(true)} />}
+      {/* Overlay — only when sidebar is open (to dismiss on mobile) */}
+      {sidebarOpen && <div style={S.overlay} onClick={() => setSidebarOpen(false)} />}
       <aside style={{ ...S.sidebar(sidebarOpen), transform: sidebarOpen ? 'translateX(0)' : 'translateX(-240px)' }}>
         <div style={S.brand}>
           <img src="/logo.jpeg" alt="GOTM" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
@@ -103,7 +104,7 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main */}
-      <div style={{ ...S.main, marginLeft: sidebarOpen ? 240 : 0, transition: 'margin 0.25s ease' }}>
+      <div style={{ ...S.main, marginLeft: sidebarOpen ? 240 : 0, transition: 'margin 0.25s ease', position: 'relative', zIndex: 1 }}>
         <header style={S.topbar}>
           <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 4 }}>
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
