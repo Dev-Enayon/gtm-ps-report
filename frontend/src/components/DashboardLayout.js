@@ -62,7 +62,7 @@ export default function DashboardLayout() {
       {!sidebarOpen && <div style={S.overlay} onClick={() => setSidebarOpen(true)} />}
       <aside style={{ ...S.sidebar(sidebarOpen), transform: sidebarOpen ? 'translateX(0)' : 'translateX(-240px)' }}>
         <div style={S.brand}>
-          <div style={S.brandIcon}><Church size={20} color="#fff" /></div>
+          <img src="/logo.jpeg" alt="GOTM" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
           <div style={S.brandText}>Gospel of Truth<br /><span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>Report System</span></div>
         </div>
 

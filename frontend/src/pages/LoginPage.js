@@ -29,9 +29,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0C447C 0%, #185FA5 50%, #378ADD 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'system-ui,sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: '2.5rem', width: '100%', maxWidth: 420, boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ width: 56, height: 56, background: '#185FA5', borderRadius: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Church size={28} color="#fff" />
-          </div>
+          <img src="/logo.jpeg" alt="GOTM" style={{ width: 56, height: 56, borderRadius: 14, objectFit: 'cover', marginBottom: 12 }} />
           <h1 style={{ fontSize: 22, fontWeight: 600, color: '#0C447C', margin: '0 0 4px' }}>Gospel of Truth Mission</h1>
           <p style={{ fontSize: 13, color: '#888', margin: 0 }}>Church Report Management System</p>
         </div>

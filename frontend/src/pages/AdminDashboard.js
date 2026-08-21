@@ -69,8 +69,9 @@ export default function AdminDashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: '1.5rem' }}>
+        <Card icon={FileText} label="Total Tasks Uploaded" value={stats?.totalTasksUploaded || 0} color="#185FA5" sub="All reports (draft + submitted)" />
         <Card icon={GitBranch} label="Total Branches" value={stats?.totalBranches || 0} color="#3B82F6" sub="Active branches" />
-        <Card icon={FileText} label="Reports Submitted" value={stats?.totalReports || 0} color="#8B5CF6" sub="This period" />
+        <Card icon={Users} label="Branch Users" value={stats?.totalBranchUsers || 0} color="#8B5CF6" sub="Registered users" />
         <Card icon={Clock} label="Pending Review" value={stats?.pendingReports || 0} color="#F59E0B" sub="Awaiting approval" />
         <Card icon={CheckCircle} label="Approved" value={stats?.approvedReports || 0} color="#22C55E" sub="Reports approved" />
         <Card icon={XCircle} label="Rejected" value={stats?.rejectedReports || 0} color="#EF4444" sub="Need revision" />

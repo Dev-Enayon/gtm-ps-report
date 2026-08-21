@@ -11,6 +11,7 @@ import ReportDetail from './pages/ReportDetail';
 import Analytics from './pages/Analytics';
 import ActivityLog from './pages/ActivityLog';
 import UserManagement from './pages/UserManagement';
+import UserDetail from './pages/UserDetail';
 import AdminRequests from './pages/AdminRequests';
 import MyReports from './pages/MyReports';
 import ReportForm from './pages/ReportForm';
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="analytics" element={<PrivateRoute adminOnly><Analytics /></PrivateRoute>} />
         <Route path="activity" element={<PrivateRoute adminOnly><ActivityLog /></PrivateRoute>} />
         <Route path="users" element={<PrivateRoute adminOnly><UserManagement /></PrivateRoute>} />
+        <Route path="users/:id" element={<PrivateRoute adminOnly><UserDetail /></PrivateRoute>} />
         <Route path="admin/requests" element={<PrivateRoute headAdminOnly><AdminRequests /></PrivateRoute>} />
         {/* Branch user routes */}
         <Route path="my-reports" element={<PrivateRoute><MyReports /></PrivateRoute>} />

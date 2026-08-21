@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { Church, User, Mail, Lock, Building, Layers } from 'lucide-react';
 
-const DIVISIONS = ['Division A', 'Division B', 'Division C', 'Division D'];
+const BRANCHES = ['Lagos Branch', 'Ogun Branch', 'Badagry Branch'];
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -31,6 +31,7 @@ export default function RegisterPage() {
   };
 
   const inputStyle = { width: '100%', padding: '10px 12px 10px 38px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+  const selectStyle = { width: '100%', padding: '10px 12px 10px 38px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', appearance: 'none', background: '#fff' };
   const iconStyle = { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#999' };
   const labelStyle = { display: 'block', fontSize: 13, fontWeight: 500, color: '#444', marginBottom: 6 };
 
@@ -38,39 +39,68 @@ export default function RegisterPage() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0C447C 0%, #185FA5 50%, #378ADD 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', fontFamily: 'system-ui,sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: '2.5rem', width: '100%', maxWidth: 460, boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}>
         <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ width: 48, height: 48, background: '#185FA5', borderRadius: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-            <Church size={24} color="#fff" />
-          </div>
+          <img src="/logo.jpeg" alt="GOTM" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover', marginBottom: 10 }} />
           <h1 style={{ fontSize: 18, fontWeight: 600, color: '#0C447C', margin: '0 0 2px' }}>Gospel of Truth Mission</h1>
           <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Create your branch account</p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {[
-            { key: 'fullname', label: 'Full Name', icon: <User size={15} style={iconStyle} />, type: 'text', placeholder: 'John Doe' },
-            { key: 'email', label: 'Email Address', icon: <Mail size={15} style={iconStyle} />, type: 'email', placeholder: 'john@email.com' },
-            { key: 'phone', label: 'Phone Number (optional)', icon: <User size={15} style={iconStyle} />, type: 'tel', placeholder: '+234 800 000 0000', required: false },
-            { key: 'password', label: 'Password', icon: <Lock size={15} style={iconStyle} />, type: 'password', placeholder: 'Min. 8 characters' },
-            { key: 'confirm', label: 'Confirm Password', icon: <Lock size={15} style={iconStyle} />, type: 'password', placeholder: 'Repeat password' },
-            { key: 'branch_name', label: 'Branch Name', icon: <Building size={15} style={iconStyle} />, type: 'text', placeholder: 'e.g. Lagos Central Branch' },
-          ].map(({ key, label, icon, type, placeholder, required = true }) => (
-            <div key={key} style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{label}</label>
-              <div style={{ position: 'relative' }}>
-                {icon}
-                <input type={type} required={required} placeholder={placeholder} value={form[key]} onChange={e => set(key, e.target.value)} style={inputStyle} />
-              </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Full Name</label>
+            <div style={{ position: 'relative' }}>
+              <User size={15} style={iconStyle} />
+              <input type="text" required placeholder="John Doe" value={form.fullname} onChange={e => set('fullname', e.target.value)} style={inputStyle} />
             </div>
-          ))}
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Email Address</label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={15} style={iconStyle} />
+              <input type="email" required placeholder="john@email.com" value={form.email} onChange={e => set('email', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Phone Number (optional)</label>
+            <div style={{ position: 'relative' }}>
+              <User size={15} style={iconStyle} />
+              <input type="tel" placeholder="+234 800 000 0000" value={form.phone} onChange={e => set('phone', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Password</label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={15} style={iconStyle} />
+              <input type="password" required placeholder="Min. 8 characters" value={form.password} onChange={e => set('password', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Confirm Password</label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={15} style={iconStyle} />
+              <input type="password" required placeholder="Repeat password" value={form.confirm} onChange={e => set('confirm', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Branch Name</label>
+            <div style={{ position: 'relative' }}>
+              <Building size={15} style={iconStyle} />
+              <select required value={form.branch_name} onChange={e => set('branch_name', e.target.value)} style={selectStyle}>
+                <option value="">Select branch</option>
+                {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+          </div>
 
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>Division</label>
             <div style={{ position: 'relative' }}>
               <Layers size={15} style={iconStyle} />
-              <select required value={form.division} onChange={e => set('division', e.target.value)} style={{ ...inputStyle, appearance: 'none', background: '#fff' }}>
-                <option value="">Select division</option>
-                {DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <input type="text" required placeholder="e.g. Youth, Women, Men" value={form.division} onChange={e => set('division', e.target.value)} style={inputStyle} />
             </div>
           </div>
 

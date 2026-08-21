@@ -138,6 +138,40 @@ router.get('/users', async (req, res, next) => {
   }
 });
 
+// GET /api/admin/users/:id
+router.get('/users/:id', async (req, res, next) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: 'Invalid user ID' });
+  try {
+    const result = await pool.query(
+      'SELECT id, fullname, email, role, status, branch_name, division, phone, last_login, created_at FROM users WHERE id = $1',
+      [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/users/:id/reports
+router.get('/users/:id/reports', async (req, res, next) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: 'Invalid user ID' });
+  try {
+    const result = await pool.query(`
+      SELECT r.*, u.fullname as submitted_by_name, u.email as submitted_by_email,
+        rev.fullname as reviewed_by_name
+      FROM monthly_reports r
+      JOIN users u ON r.user_id = u.id
+      LEFT JOIN users rev ON r.reviewed_by = rev.id
+      WHERE r.user_id = $1
+      ORDER BY r.created_at DESC
+    `, [req.params.id]);
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PUT /api/admin/users/:id/status
 router.put('/users/:id/status', requireHeadAdmin, async (req, res, next) => {
   const { id } = req.params;
@@ -162,7 +196,8 @@ router.put('/users/:id/status', requireHeadAdmin, async (req, res, next) => {
 // GET /api/admin/stats
 router.get('/stats', async (req, res, next) => {
   try {
-    const [reports, users, pending, approved, rejected, revenue, branches, adminRequests] = await Promise.all([
+    const [allReports, reports, users, pending, approved, rejected, revenue, branches, adminRequests] = await Promise.all([
+      pool.query("SELECT COUNT(*) FROM monthly_reports"),
       pool.query("SELECT COUNT(*) FROM monthly_reports WHERE status != 'draft'"),
       pool.query("SELECT COUNT(*) FROM users WHERE role = 'branch' AND status = 'active'"),
       pool.query("SELECT COUNT(*) FROM monthly_reports WHERE status = 'submitted'"),
@@ -174,6 +209,7 @@ router.get('/stats', async (req, res, next) => {
     ]);
 
     res.json({
+      totalTasksUploaded: parseInt(allReports.rows[0].count),
       totalReports: parseInt(reports.rows[0].count),
       totalBranchUsers: parseInt(users.rows[0].count),
       pendingReports: parseInt(pending.rows[0].count),

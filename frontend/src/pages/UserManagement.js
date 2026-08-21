@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.get('/admin/users').then(r => setUsers(r.data)).catch(() => toast.error('Failed to load users')).finally(() => setLoading(false));
   }, []);
 
-  const toggleStatus = async (u) => {
+  const toggleStatus = async (e, u) => {
+    e.stopPropagation();
     const newStatus = u.status === 'active' ? 'suspended' : 'active';
     try {
       await api.put(`/admin/users/${u.id}/status`, { status: newStatus });
@@ -42,8 +44,8 @@ export default function UserManagement() {
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} style={{ borderBottom: '1px solid #F8FAFC' }}>
-                    <td style={{ padding: '11px 14px', fontWeight: 600 }}>{u.fullname}</td>
+                  <tr key={u.id} onClick={() => navigate(`/users/${u.id}`)} style={{ borderBottom: '1px solid #F8FAFC', cursor: 'pointer', transition: 'background 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = '#F8FAFC'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    <td style={{ padding: '11px 14px', fontWeight: 600, color: '#185FA5' }}>{u.fullname}</td>
                     <td style={{ padding: '11px 14px', color: '#64748B' }}>{u.email}</td>
                     <td style={{ padding: '11px 14px' }}>
                       <span style={{ background: (roleColor[u.role] || '#64748B') + '20', color: roleColor[u.role] || '#64748B', padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
@@ -62,7 +64,7 @@ export default function UserManagement() {
                     </td>
                     <td style={{ padding: '11px 14px' }}>
                       {u.role !== 'head_admin' && (
-                        <button onClick={() => toggleStatus(u)} style={{ padding: '4px 12px', background: u.status === 'active' ? '#FEE2E2' : '#DCFCE7', color: u.status === 'active' ? '#DC2626' : '#15803D', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+                        <button onClick={(e) => toggleStatus(e, u)} style={{ padding: '4px 12px', background: u.status === 'active' ? '#FEE2E2' : '#DCFCE7', color: u.status === 'active' ? '#DC2626' : '#15803D', border: 'none', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
                           {u.status === 'active' ? 'Suspend' : 'Activate'}
                         </button>
                       )}
