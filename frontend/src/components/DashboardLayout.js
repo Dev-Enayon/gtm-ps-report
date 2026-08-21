@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import {
-  Church, LayoutDashboard, FileText, BarChart2, Activity,
+  LayoutDashboard, FileText, BarChart2, Activity,
   Users, ShieldCheck, ClipboardList, PlusCircle, History,
   LogOut, Bell, Menu, X, UserCog
 } from 'lucide-react';
@@ -15,10 +15,9 @@ const S = {
     position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 200,
     transform: open ? 'translateX(0)' : 'translateX(-100%)',
     transition: 'transform 0.25s ease', overflowY: 'auto',
+    boxShadow: open ? '4px 0 20px rgba(0,0,0,0.3)' : 'none',
   }),
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 199 },
   brand: { padding: '1.25rem 1rem', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid rgba(255,255,255,0.1)' },
-  brandIcon: { width: 36, height: 36, background: 'rgba(255,255,255,0.2)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   brandText: { fontSize: 13, fontWeight: 600, lineHeight: 1.3 },
   section: { fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', padding: '12px 1rem 4px', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 8 },
   navItem: (active) => ({
@@ -27,7 +26,7 @@ const S = {
     borderRadius: 0, cursor: 'pointer', textDecoration: 'none', transition: 'all 0.15s',
     borderLeft: active ? '3px solid #60A5FA' : '3px solid transparent',
   }),
-  main: { flex: 1, marginLeft: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' },
+  main: { flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' },
   topbar: { background: '#fff', borderBottom: '1px solid #E2E8F0', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 },
   content: { flex: 1, padding: '1.5rem', maxWidth: 1200, width: '100%', margin: '0 auto', boxSizing: 'border-box' },
   avatar: { width: 34, height: 34, borderRadius: '50%', background: '#185FA5', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
@@ -46,7 +45,7 @@ function NavItem({ to, icon: Icon, label }) {
 export default function DashboardLayout() {
   const { user, logout, isAdmin, isHeadAdmin } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -58,10 +57,8 @@ export default function DashboardLayout() {
 
   return (
     <div style={S.wrap}>
-      {/* Sidebar */}
-      {/* Overlay — only when sidebar is open (to dismiss on mobile) */}
-      {sidebarOpen && <div style={S.overlay} onClick={() => setSidebarOpen(false)} />}
-      <aside style={{ ...S.sidebar(sidebarOpen), transform: sidebarOpen ? 'translateX(0)' : 'translateX(-240px)' }}>
+      {/* Sidebar — floats over content, no overlay */}
+      <aside style={S.sidebar(sidebarOpen)}>
         <div style={S.brand}>
           <img src="/logo.jpeg" alt="GOTM" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
           <div style={S.brandText}>Gospel of Truth<br /><span style={{ fontSize: 11, fontWeight: 400, opacity: 0.7 }}>Report System</span></div>
@@ -103,8 +100,8 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main */}
-      <div style={{ ...S.main, marginLeft: sidebarOpen ? 240 : 0, transition: 'margin 0.25s ease', position: 'relative', zIndex: 1 }}>
+      {/* Main — never shifts, content stays in place */}
+      <div style={S.main}>
         <header style={S.topbar}>
           <button onClick={() => setSidebarOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', padding: 4 }}>
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
